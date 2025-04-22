@@ -60,8 +60,6 @@ You might notice this entire tool is contained within a single Python file. Whil
 
 ## ⚙️ Usage
 
-*(Assuming the script is saved as `pip_updater.py`)*
-
 1.  **Show Help:**
     ```bash
     python pip_updater.py -h
