@@ -157,7 +157,8 @@ Some Linux distributions (like recent Debian, Ubuntu, Fedora) mark their system 
 * **Detection:** The script checks pip's output for errors like "externally managed environment".
 * **Default Behavior:** If this error is detected, the update for that package is skipped, and it's noted in the summary.
 * **Overriding (`--allow-break-system-packages`):** This flag adds `--break-system-packages` to the `pip install` command. This tells pip to ignore the PEP 668 protection.
-* ⚠️ **Warning:** Using this flag can potentially break system tools that rely on specific package versions. **It is strongly recommended to use virtual environments (`venv`, `conda`) instead of modifying the system Python directly.** Use this flag only if you understand the risks.
+
+⚠️ **Warning:** Using this flag can potentially break system tools that rely on specific package versions. **It is strongly recommended to use virtual environments (`venv`, `conda`) instead of modifying the system Python directly.** Use this flag only if you understand the risks.
 
 ## 📄 Excluding Packages
 
