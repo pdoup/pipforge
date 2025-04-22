@@ -2,7 +2,7 @@
 ##  Pip Package Updater 🚀
 
 [![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Stability: Experimental/Pragmatic](https://img.shields.io/badge/stability-experimental-orange.svg)](#-disclaimer-read-this)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Stability: Experimental/Pragmatic](https://img.shields.io/badge/stability-experimental-orange.svg)](#disclaimer-read-this)
 [![Code style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 A **pragmatic**, single-file command-line tool to check for and update outdated Python packages installed via `pip`. It offers features like caching, best-effort conflict detection, and rich console output, designed for straightforward use.
@@ -17,7 +17,7 @@ Tired of manually running `pip list --outdated` and then `pip install -U <packag
 * 📈 **Update:** Upgrade packages to their latest versions.
 * 🧠 **Best-Effort Intelligence:** Detect potential dependency conflicts using available tools (`pipdeptree`, dry runs) and output parsing.
 * 💾 **Cache:** Speed up checks by caching outdated package lists.
-* 💅 **Rich Output:** Present information clearly using tables and progress bars (optional).
+* ✨ **Rich Output:** Present information clearly using tables and progress bars (optional).
 * ⚙️ **Flexible:** Offer various command-line options for customization.
 
 ## ⚠️ Disclaimer: Read This! (The "Hacky" Nature)
