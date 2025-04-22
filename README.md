@@ -2,7 +2,7 @@
 ##  Pip Package Updater 🚀
 
 [![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Stability: Experimental/Pragmatic](https://img.shields.io/badge/stability-experimental-orange.svg)](#disclaimer-read-this)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Stability: Experimental/Pragmatic](https://img.shields.io/badge/stability-experimental-orange.svg)](#1#%EF%B8%8F-disclaimer-read-this-the-hacky-nature)
 [![Code style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 A **pragmatic**, single-file command-line tool to check for and update outdated Python packages installed via `pip`. It offers features like caching, best-effort conflict detection, and rich console output, designed for straightforward use.
