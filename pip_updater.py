@@ -1615,7 +1615,7 @@ class PipUpdater:
                     self._run_pip_command(dry_run_command)
                 )
 
-                # Check for conflicts specifically related to this package in the dry run stderr
+                # Check for conflicts specifically related to this package using dependency analyzer
                 dry_run_conflict = self._analyzer.check_package_conflict(
                     package_name, new_version
                 )
