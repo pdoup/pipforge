@@ -161,13 +161,13 @@ pip install .
     ```
 
 10.  **Customize Cache:**
-    ```bash
-    # Set cache duration to 2 hours (120 minutes)
-    pipforge --cache-duration 120
+     ```bash
+     # Set cache duration to 2 hours (120 minutes)
+     pipforge --cache-duration 120
 
-    # Set a custom cache directory
-    pipforge --cache-dir /tmp/my_pip_cache
-    ```
+     # Set a custom cache directory
+     pipforge --cache-dir /tmp/my_pip_cache
+     ```
 
 11. **Disable Rich Formatting:**
     ```bash
