@@ -65,52 +65,52 @@ You might notice this entire tool is contained within a single Python file. Whil
     ```bash
     python pip_updater.py -h
     ```
-    *Output*
+    *(Output)*
     ```bash
-Pip Package Updater
-
-options:
-  -h, --help                                             show this help message and exit
-
-Exclusion Options:
-  --exclude-file FILE_PATH                               Path to a text file containing package names to exclude (one per line).
-  --exclude [PKG ...]                                    List of package names to exclude directly.
-
-Logging & Cache Options:
-  --log-level {TRACE,DEBUG,INFO,WARNING,ERROR,CRITICAL}  Set the minimum console logging level (default: INFO).
-  --log-file-path PATH                                   Path to the log file (default: pip_updater.log).
-  --no-log-file                                          Disable logging to a file.
-  --no-rich-console                                      Disable rich formatting (colors, tables, progress) in console output.
-  --no-cache                                             Disable caching entirely (equivalent to --cache-duration 0).
-  --cache-duration MINUTES                               Cache validity duration for outdated checks in minutes (0 disables cache, default: 60).
-  --cache-dir PATH                                       Directory for cache files (default: /home/kmarg/.cache/pip_updater).
-
-Execution Options:
-  --update                                               Perform package updates after checking. Default is check-only.
-  -y, --yes                                              Skip the confirmation prompt before updating packages.
-  --ignore-conflicts                                     Attempt updates even if pip detects dependency conflicts (use with caution).
-  --allow-break-system-packages                          Allow pip to upgrade system-managed packages by using the `--break-system-packages` flag. 
-
-Default cache directory: /home/user/.cache/pip_updater
-Default cache duration: 60 minutes
-
-Example Usage:
-  # Check only, use cache (default), show debug logs
-  python pip_updater.py --log-level DEBUG
-
-  # Update packages, ignore conflicts, skip confirmation, disable cache entirely
-  python pip_updater.py --update --ignore-conflicts -y --no-cache
-
-  # Check only, force refresh (equivalent to --no-cache)
-  python pip_updater.py --cache-duration 0
-
-  # Check only, specify a custom cache directory and duration
-  python pip_updater.py --cache-dir /path/to/my/cache --cache-duration 120
-
-  # Force update system-managed packages
-  # ⚠️  Use with extreme caution
-  python pip_updater.py --update --allow-break-system-packages
-```
+    Pip Package Updater
+    
+    options:
+      -h, --help                                             show this help message and exit
+    
+    Exclusion Options:
+      --exclude-file FILE_PATH                               Path to a text file containing package names to exclude (one per line).
+      --exclude [PKG ...]                                    List of package names to exclude directly.
+    
+    Logging & Cache Options:
+      --log-level {TRACE,DEBUG,INFO,WARNING,ERROR,CRITICAL}  Set the minimum console logging level (default: INFO).
+      --log-file-path PATH                                   Path to the log file (default: pip_updater.log).
+      --no-log-file                                          Disable logging to a file.
+      --no-rich-console                                      Disable rich formatting (colors, tables, progress) in console output.
+      --no-cache                                             Disable caching entirely (equivalent to --cache-duration 0).
+      --cache-duration MINUTES                               Cache validity duration for outdated checks in minutes (0 disables cache, default: 60).
+      --cache-dir PATH                                       Directory for cache files (default: /home/kmarg/.cache/pip_updater).
+    
+    Execution Options:
+      --update                                               Perform package updates after checking. Default is check-only.
+      -y, --yes                                              Skip the confirmation prompt before updating packages.
+      --ignore-conflicts                                     Attempt updates even if pip detects dependency conflicts (use with caution).
+      --allow-break-system-packages                          Allow pip to upgrade system-managed packages by using the `--break-system-packages` flag. 
+    
+    Default cache directory: /home/user/.cache/pip_updater
+    Default cache duration: 60 minutes
+    
+    Example Usage:
+      # Check only, use cache (default), show debug logs
+      python pip_updater.py --log-level DEBUG
+    
+      # Update packages, ignore conflicts, skip confirmation, disable cache entirely
+      python pip_updater.py --update --ignore-conflicts -y --no-cache
+    
+      # Check only, force refresh (equivalent to --no-cache)
+      python pip_updater.py --cache-duration 0
+    
+      # Check only, specify a custom cache directory and duration
+      python pip_updater.py --cache-dir /path/to/my/cache --cache-duration 120
+    
+      # Force update system-managed packages
+      # ⚠️  Use with extreme caution
+      python pip_updater.py --update --allow-break-system-packages
+    ```
 3.  **Check for Outdated Packages (Default Action):**
     ```bash
     python pip_updater.py
