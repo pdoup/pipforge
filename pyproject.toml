@@ -1,0 +1,58 @@
+# pyproject.toml
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# Core Project Metadata (PEP 621)
+[project]
+name = "pipforge"
+version = "0.0.1"
+description = "An enhanced command-line tool to check for and update outdated pip packages, featuring dependency conflict detection, caching, and flexible filtering."
+
+readme = "README.md"
+
+requires-python = ">=3.11"
+
+license = "MIT"
+
+authors = [
+  { name = "Panagiotis Doupidis" }
+]
+maintainers = [
+  { name = "Panagiotis Doupidis" }
+]
+
+keywords = ["pip", "update", "updater", "package", "dependency", "conflict", "cache", "cli", "tool"]
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: System :: Software Distribution",
+    "Topic :: Utilities",
+    "Environment :: Console",
+    "Typing :: Typed",
+]
+
+# Runtime dependencies required for the tool to function
+dependencies = [
+    "rich",
+    "packaging",
+    "diskcache",
+    "pipdeptree",
+    "loguru"
+]
+
+[project.urls]
+Homepage = "https://github.com/pdoup/pipforge"
+Repository = "https://github.com/pdoup/pipforge"
+"Bug Tracker" = "https://github.com/pdoup/pipforge/issues"
+
+[project.scripts]
+pipforge = "pip_updater:main"
