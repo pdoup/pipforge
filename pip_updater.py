@@ -45,6 +45,7 @@ from typing import (
     Callable,
     Dict,
     Final,
+    Iterator,
     List,
     Optional,
     Self,
@@ -199,6 +200,17 @@ class OutdatedPackageInfo(PackageInfo):
     latest_filetype: str  # e.g., 'wheel', 'sdist'
 
 
+@dataclass(frozen=True)
+class PackageUpdateResult:
+    """Holds the outcome of a single package update attempt."""
+
+    success: bool
+    message: str
+    is_conflict_related_failure: bool = False
+    is_system_managed_failure: bool = False
+    download_bytes: int = 0
+
+
 @dataclass
 class UpdateStats:
     """Stores statistics about the update process."""
@@ -333,14 +345,14 @@ class DependencyAnalyzer:
     explicitly using the 'load_current_environment_state' method.
     """
 
-    def __init__(self, ignore_conflicts: bool = False):
+    def __init__(self: Self, ignore_conflicts: bool = False):
         """Initializes the analyzer with no state loaded."""
         self._dependency_tree: Optional[List[PipdeptreeEntry]] = None
         self._reverse_map: Optional[ReverseDependencyMap] = None
-        self.ignore_conflicts = ignore_conflicts
+        self.ignore_conflicts: bool = ignore_conflicts
         logger.debug("DependencyAnalyzer instance created. State is not yet loaded.")
 
-    def load_current_environment_state(self):
+    def load_current_environment_state(self: Self):
         """
         Loads the current dependency state of the Python environment
         by executing pipdeptree and building the internal maps.
@@ -405,7 +417,7 @@ class DependencyAnalyzer:
         load_current_environment_state, flag_name="ignore_conflicts"
     )
     def check_package_conflict(
-        self, package_name: str, proposed_version: str
+        self: Self, package_name: str, proposed_version: str
     ) -> List[str]:
         """
         Checks for potential version conflicts if a given package's version
@@ -481,15 +493,22 @@ class DependencyAnalyzer:
             ) from e
 
         for depender_name, required_spec_str in dependers:
+            depender_name_versions = self._get_installed_depender_versions(
+                filter(
+                    lambda key: key.get("key", None) == depender_name,
+                    self._dependency_tree,
+                )
+            )
+            depender_name_version = "{}=={}".format(*next(depender_name_versions))
             # Skip if the required specifier is empty or explicitly "any"
             if not required_spec_str or required_spec_str.strip().lower() == "any":
                 logger.debug(
-                    f"Depender '{depender_name}' requires '{package_name}' with specifier '{required_spec_str}'. Skipping check."
+                    f"Depender '{depender_name_version}' requires '{package_name}' with specifier '{required_spec_str}'. Skipping check."
                 )
                 continue
 
             logger.debug(
-                f"Checking depender '{depender_name}' with requirement '{package_name}{required_spec_str}'."
+                f"Checking depender '{depender_name_version}' with requirement '{package_name}{required_spec_str}'."
             )
 
             try:
@@ -499,35 +518,35 @@ class DependencyAnalyzer:
                 # Check if the proposed new version is compatible with the specifier
                 if parsed_proposed_version not in required_specifier:
                     violation_message = (
-                        f"'{depender_name}' requires "
+                        f"'{depender_name_version}' requires "
                         f"'{package_name}{required_spec_str}', which is incompatible with proposed version '{proposed_version}'."
                     )
                     logger.warning(violation_message)
                     violations.append(violation_message)
                 else:
                     logger.debug(
-                        f"Proposed version '{proposed_version}' is compatible with '{depender_name}' requirement '{required_spec_str}'."
+                        f"Proposed version '{proposed_version}' is compatible with '{depender_name_version}' requirement '{required_spec_str}'."
                     )
 
             except InvalidSpecifier as e:
                 # Catch specific packaging error for invalid specifier strings
                 error_message = (
                     f"Invalid version specifier '{required_spec_str}' for package '{package_name}' "
-                    f"required by '{depender_name}'. Original error: {e}"
+                    f"required by '{depender_name_version}'. Original error: {e}"
                 )
                 logger.error(error_message, exc_info=True)
                 violations.append(
-                    f"Constraint parsing error: {depender_name} requires {package_name}{required_spec_str} (Invalid Specifier: {e})"
+                    f"Constraint parsing error: {depender_name_version} requires {package_name}{required_spec_str} (Invalid Specifier: {e})"
                 )
             except Exception as e:
                 # Catch any other unexpected error during specifier parsing or evaluation
                 error_message = (
                     f"An unexpected error occurred evaluating version specifier '{required_spec_str}' "
-                    f"for package '{package_name}' required by '{depender_name}'. Original error: {e}"
+                    f"for package '{package_name}' required by '{depender_name_version}'. Original error: {e}"
                 )
                 logger.error(error_message, exc_info=True)
                 violations.append(
-                    f"Constraint evaluation error: {depender_name} requires {package_name}{required_spec_str} (Error: {e})"
+                    f"Constraint evaluation error: {depender_name_version} requires {package_name}{required_spec_str} (Error: {e})"
                 )
 
         if violations:
@@ -541,12 +560,35 @@ class DependencyAnalyzer:
 
         return violations
 
-    def __repr__(self) -> str:
+    def _get_installed_depender_versions(
+        self: Self, packages: List[PipdeptreeEntry]
+    ) -> Iterator[PipdeptreePackageInfo]:
+        """
+        Recursively extracts the installed version of each package and its dependencies.
+
+        Args:
+            packages: A list of dictionaries representing package metadata.
+
+        Yields:
+            Tuples of (package_name, installed_version).
+        """
+        if not self._dependency_tree:
+            raise EnvironmentStateError(
+                f"Dependecy tree unavailable, environment not loaded."
+            )
+
+        for pkg in packages:
+            yield pkg["package_name"], pkg["installed_version"]
+            dependencies = pkg.get("dependencies", [])
+            if dependencies:
+                yield from self._get_installed_depender_versions(dependencies)
+
+    def __repr__(self: Self) -> str:
         """
         Provides a developer-friendly string representation of the analyzer instance.
         Includes information about the loaded state and counts.
         """
-        state = "Loaded" if self else "Not Loaded"
+        state: Final[str] = "Loaded" if self else "Not Loaded"
         if self:
             num_packages = len(self)
             num_reverse_deps = (
@@ -559,21 +601,21 @@ class DependencyAnalyzer:
         else:
             return f"<DependencyAnalyzer(state='{state}', id={id(self)})>"
 
-    def __bool__(self) -> bool:
+    def __bool__(self: Self) -> bool:
         """
         Allows boolean evaluation of the analyzer.
         An analyzer is considered 'True' if the dependency state has been successfully loaded.
         """
         return self._reverse_map is not None
 
-    def __len__(self) -> int:
+    def __len__(self: Self) -> int:
         """
         Allows using the len() function on the analyzer instance.
         Returns the number of packages in the dependency tree if loaded, otherwise 0.
         """
         return len(self._dependency_tree) if self._dependency_tree is not None else 0
 
-    def _get_pipdeptree_json(self) -> List[PipdeptreeEntry]:
+    def _get_pipdeptree_json(self: Self) -> List[PipdeptreeEntry]:
         """
         Internal helper: Executes 'pipdeptree --json-tree' and parses output.
         Handles subprocess execution and JSON parsing errors.
@@ -641,7 +683,7 @@ class DependencyAnalyzer:
             ) from e
 
     def _build_reverse_dependency_map(
-        self, tree: List[PipdeptreeEntry]
+        self: Self, tree: List[PipdeptreeEntry]
     ) -> ReverseDependencyMap:
         """
         Internal helper: Constructs a reverse dependency map from pipdeptree output.
@@ -809,6 +851,9 @@ class PipUpdater:
         self.outdated_packages: List[OutdatedPackageInfo] = []
         self.packages_to_update: List[OutdatedPackageInfo] = []
         self.stats: UpdateStats = UpdateStats()
+        self._skipped_due_to_conflict: Dict[
+            str, Tuple[OutdatedPackageInfo, List[str]]
+        ] = {}
 
         logger.info("PipUpdater initialized")
         logger.debug(f"Excluded packages: {self.exclude_packages}")
@@ -1033,7 +1078,7 @@ class PipUpdater:
                 cached_value = self.cache.get(
                     cache_key, default=None, expire_time=True, tag=OUTDATED_CACHE_TAG
                 )
-                if cached_value is not None:
+                if not any(value is None for value in cached_value):
                     (
                         (stored_outdated_str, stored_installed_hash),
                         expiry_timestamp,
@@ -1276,6 +1321,7 @@ class PipUpdater:
         logger.info("Starting Package Update Check")
         cache_status = self.stats.cache_used
         self.stats = UpdateStats(start_time=datetime.now(), cache_used=cache_status)
+        self._skipped_due_to_conflict = {}
         current_installed_hash = None
 
         try:
@@ -1487,34 +1533,187 @@ class PipUpdater:
             pruning_error = CachePruningError(package_name, error_msg)
             logger.error(str(pruning_error), level="error")
 
+    def _execute_and_verify_update(
+        self: Self,
+        pkg_info: OutdatedPackageInfo,
+        progress: Optional[Progress] = None,
+        task_id: Optional[Any] = None,
+    ) -> PackageUpdateResult:
+        """
+        Executes the pip install command for a specific package and verifies the outcome.
+
+        Args:
+            pkg_info: Information about the package to update.
+            progress: Rich Progress object for UI updates.
+            task_id: Rich Task ID for the progress bar.
+
+        Returns:
+            A PackageUpdateResult object detailing the outcome.
+        """
+        package_name = pkg_info.name
+        new_version = pkg_info.latest_version
+
+        if progress and task_id is not None:
+            progress.update(
+                task_id,
+                description=f"[cyan]Installing {package_name}=={new_version}...",
+            )
+
+        command = [
+            "install",
+            "--upgrade",
+            f"{package_name}=={new_version}",
+            "--disable-pip-version-check",
+            "--no-input",
+        ]
+        if self._allow_break_system_pkgs:
+            command.append("--break-system-packages")
+
+        stdout, stderr, return_code = self._run_pip_command(command)
+        stderr_snippet = stderr[:500].strip()  # For error messages
+
+        # Check for system-managed environment error *after* attempted install
+        is_system_managed = self._check_for_externally_managed_env_error(stderr)
+        if is_system_managed and not self._allow_break_system_pkgs:
+            # If pip succeeded despite the warning, or failed because of it
+            message = f"System-managed environment detected. Use --allow-break-system-packages to override."
+            if return_code == 0:
+                message += (
+                    " (Install command succeeded but environment may be restricted)"
+                )
+            return PackageUpdateResult(
+                success=False, message=message, is_system_managed_failure=True
+            )
+
+        # Check for success based on return code
+        if return_code == 0:
+            # Check stderr for post-install dependency conflict warnings even if pip returned 0
+            post_install_conflict = self._check_for_conflicts(stderr, package_name)
+            if post_install_conflict:
+                self.stats.conflict_detected_count += 1  # Log detection
+                if not self.ignore_conflicts:
+                    # Treat post-install warning as failure if not ignoring conflicts
+                    return PackageUpdateResult(
+                        success=False,
+                        message="Dependency conflict warning detected in pip output post-install.",
+                        is_conflict_related_failure=True,
+                    )
+                else:
+                    # Conflict detected but ignored, proceed with verification
+                    logger.warning(
+                        f"Conflict detected for '{package_name}=={new_version}', proceeding since '--ignore-conflicts' is set to {self.ignore_conflicts}"
+                    )
+                    self.stats.conflict_ignored_count += 1
+
+            # Verify installation succeeded and the version is correct
+            try:
+                current_info = self._get_specific_package_info(package_name)
+                if current_info and current_info.version == new_version:
+                    dl_bytes = self._parse_download_size(stdout + stderr)
+                    return PackageUpdateResult(
+                        success=True,
+                        message=f"Successfully updated to {new_version}",
+                        download_bytes=dl_bytes,
+                    )
+                elif current_info:
+                    return PackageUpdateResult(
+                        success=False,
+                        message=f"Version mismatch after update ({current_info.version} installed, expected {new_version})",
+                    )
+                else:
+                    return PackageUpdateResult(
+                        success=False,
+                        message="Could not verify version after update attempt.",
+                    )
+            except PipUpdaterError as verify_err:
+                return PackageUpdateResult(
+                    success=False, message=f"Verification failed: {verify_err}"
+                )
+
+        else:
+            # Determine if the failure was primarily due to a conflict message
+            is_conflict_failure = self._check_for_conflicts(stderr, package_name)
+            if is_conflict_failure:
+                self.stats.conflict_detected_count += 1
+                # If ignoring conflicts, we still report failure, but not as conflict-related *for action purposes*
+                report_as_conflict = not self.ignore_conflicts
+                if self.ignore_conflicts:
+                    self.stats.conflict_ignored_count += 1
+                return PackageUpdateResult(
+                    success=False,
+                    message=f"Pip command failed (code {return_code}, likely conflict related). Stderr: {stderr_snippet}",
+                    is_conflict_related_failure=report_as_conflict,
+                )
+            else:
+                return PackageUpdateResult(
+                    success=False,
+                    message=f"Pip command failed (code {return_code}). Stderr: {stderr_snippet}",
+                )
+
     def update_packages(self: Self) -> UpdateStats:
-        """Attempts to update the filtered list of packages."""
         if not self.stats.start_time:
-            logger.info("Statistics not initialized. Running check_updates first.")
             self.check_updates()
 
-        if not self.packages_to_update:
-            logger.warning("No packages identified for update. Nothing to do.")
+        initial_packages_to_check: List[OutdatedPackageInfo] = list(
+            self.packages_to_update
+        )
+
+        if not initial_packages_to_check:
+            self.console.print(
+                "[green]No packages need updating based on current filters.[/green]"
+            )
             if not self.stats.end_time:
                 self.stats.end_time = datetime.now()
             self._log_summary()
             return self.stats
 
-        package_count = len(self.packages_to_update)
-        logger.info(f"Starting Package Update Process for {package_count} packages")
-        self.stats.attempted_update_count = package_count
+        self.stats.attempted_update_count = len(initial_packages_to_check)
+        dependency_analyzer_ready = False
+        if not self.ignore_conflicts:
+            try:
+                self._analyzer.load_current_environment_state()
+                dependency_analyzer_ready = True
+            except DependencyAnalysisError as e:
+                self.console.print(
+                    f"[bold red]Error loading dependency state:[/bold red] {e}"
+                )
+                self.console.print(
+                    "[yellow]Cannot perform conflict checks. Updates requiring conflict checks will be skipped.[/yellow]"
+                )
+                # Proceeding without analysis is risky, but allows non-conflicting updates.
 
-        if self._allow_break_system_pkgs:
-            logger.warning(
-                "⚠️  '--break-system-packages' is enabled. "
-                "This may irreversibly modify system-managed Python packages. "
-                "Use only if you *absolutely* understand the implications."
-                "See: https://pip.pypa.io/en/stable/topics/externally-managed-environments/"
-            )
-
-        if self.packages_to_update:
-            self._analyzer.load_current_environment_state()
-            logger.debug("Initialized environment state")
+        # --- Cache Reading Logic (for final pruning) ---
+        cache_key = self._get_cache_key()
+        cached_outdated_data: Optional[List[Dict[str, Any]]] = None
+        expiry_timestamp: Optional[float] = None
+        if self.cache and self.cache_duration_seconds > 0:
+            try:
+                cached_value = self.cache.get(
+                    cache_key, default=None, expire_time=True, tag=OUTDATED_CACHE_TAG
+                )
+                if not any(value is None for value in cached_value):
+                    (cached_data_str, _), expiry_timestamp_cache, _ = cached_value
+                    expiry_timestamp = expiry_timestamp_cache
+                    if (
+                        isinstance(cached_data_str, str)
+                        and cached_data_str
+                        and cached_data_str.strip()
+                    ):
+                        cached_outdated_data = json.loads(cached_data_str)
+                    else:
+                        cached_outdated_data = None
+            except json.JSONDecodeError:
+                self._attempt_cache_deletion(
+                    cache_key, None, "corrupt JSON during update start"
+                )
+                cached_outdated_data = None
+                expiry_timestamp = None
+            except Exception:
+                self._attempt_cache_deletion(
+                    cache_key, None, "processing error during update start"
+                )
+                cached_outdated_data = None
+                expiry_timestamp = None
 
         progress_context: Any = contextlib.nullcontext()
         task_id = None
@@ -1522,339 +1721,265 @@ class PipUpdater:
             progress = Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
+                BarColumn(bar_width=None),
                 TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
                 TimeElapsedColumn(),
                 console=self.console,
                 transient=False,
+                expand=True,
             )
             progress_context = progress
             task_id = progress.add_task(
-                "[cyan]Updating packages...", total=package_count
+                "[cyan]Processing updates...", total=len(initial_packages_to_check)
             )
 
-        # Retrieve current cache data if cache is enabled
-        cache_key = self._get_cache_key()
-        cached_outdated_data: Optional[List[Dict[str, Any]]] = None
-        if self.cache and self.cache_duration_seconds > 0:
-            logger.debug(f"Attempting to read cache for key: '{cache_key}'")
-            try:
-                cached_value = self.cache.get(
-                    cache_key, default=None, expire_time=True, tag=OUTDATED_CACHE_TAG
-                )
-                if cached_value is not None:
-                    (cached_data_str, _), expiry_timestamp, _ = cached_value
-                    if isinstance(cached_data_str, str):
-                        if not cached_data_str or not cached_data_str.strip():
-                            # Cache entry exists but is empty string.
-                            logger.debug(
-                                f"Cache key '{cache_key}' is empty. No pruning needed."
-                            )
-                        else:
-                            cached_outdated_data = json.loads(cached_data_str)
-                            logger.debug(
-                                "Successfully read outdated packages from cache."
-                            )
-                    else:
-                        logger.warning(
-                            "Cached data is not a string, skipping cache modification."
-                        )
-                        cached_outdated_data = None
-            except json.JSONDecodeError as e:
-                error_msg = (
-                    f"JSON decode error during pruning parse for '{cache_key}': {e}"
-                )
-                logger.error(
-                    f"{error_msg} — Cache entry is corrupt. Attempting deletion"
-                )
-                self._attempt_cache_deletion(
-                    cache_key, None, "corrupt JSON during pruning parse"
-                )
-                cached_outdated_data = None
-            except Exception as e:
-                error_msg = (
-                    f"Unexpected error during pruning processing for '{cache_key}': {e}"
-                )
-                logger.error(f"{error_msg} — Attempting deletion.")
-                self._attempt_cache_deletion(
-                    cache_key, None, "processing error during pruning"
-                )
-                cached_outdated_data = None
-
         with progress_context as progress:
-            for i, pkg in enumerate(self.packages_to_update):
+            for i, pkg in enumerate(initial_packages_to_check):
                 package_name = pkg.name
                 old_version = pkg.version
                 new_version = pkg.latest_version
-                update_failed = False
-                failure_reason = "Unknown"
-                is_conflict_failure = False
 
-                if progress:
+                if progress and task_id is not None:
                     progress.update(
                         task_id,
                         description=f"[cyan]Checking {package_name} ({old_version} → {new_version})",
                     )
 
-                # --- Dry Run Check ---
-                logger.info(
-                    f"Performing dry run check for {package_name}=={new_version}..."
-                )
-                dry_run_command = [
-                    "install",
-                    "--dry-run",
-                    "--upgrade",
-                    f"{package_name}=={new_version}",
-                    "--disable-pip-version-check",
-                    "--no-input",
-                ]
-                if self._allow_break_system_pkgs:
-                    dry_run_command.append("--break-system-packages")
+                perform_update = True
+                dry_run_failed_non_conflict = False
+                failure_reason = ""
 
-                dry_run_stdout, dry_run_stderr, dry_run_return_code = (
-                    self._run_pip_command(dry_run_command)
-                )
-
-                # Check for conflicts specifically related to this package using dependency analyzer
-                dry_run_conflict = self._analyzer.check_package_conflict(
-                    package_name, new_version
-                )
-
-                if dry_run_conflict:
-                    self.stats.conflict_detected_count += 1  # Count detected conflicts
-                    if not self.ignore_conflicts:
-                        logger.error(
-                            f"Dependency conflict detected during dry run for '{package_name}'. Update prohibited."
-                        )
-                        update_failed = True
-                        is_conflict_failure = True
-                        failure_reason = ", ".join(dry_run_conflict)
-                        self.stats.conflicted_packages.append(
-                            package_name
-                        )  # Add to list of packages skipped due to conflict
-                        # Skip actual install attempt for this package
-                    else:
-                        logger.warning(
-                            f"Dependency conflict detected during dry run for '{package_name}', but proceeding due to --ignore-conflicts flag."
-                        )
-                        self.stats.conflict_ignored_count += 1
-                        # Proceed to actual install, but be aware it might still fail
-                elif dry_run_return_code != 0:
-                    # Distinguish from explicit conflicts - could be network error, package not found etc.
-                    logger.warning(
-                        f"Dry run for '{package_name}=={new_version}' failed (code: {dry_run_return_code}). This might indicate issues even without explicit conflicts."
-                    )
-
-                # Check for externally managed env errors
-                ext_managed_error = self._check_for_externally_managed_env_error(
-                    dry_run_stderr
-                )
-
-                if ext_managed_error and not self._allow_break_system_pkgs:
-                    self.stats.system_managed_count += 1
-                    logger.debug(
-                        f"Package '{package_name}' is managed externally (update failed)"
-                    )
-                    update_failed = True
-                    failure_reason = "System-managed package (dry-run)"
-                    self.stats.system_packages.append(package_name)
-
-                if not update_failed:
-                    if progress:
-                        progress.update(
-                            task_id,
-                            description=f"[cyan]Updating {package_name} ({old_version} → {new_version})",
-                        )
-
-                    logger.info(
-                        f"Attempting update for: {package_name} ({old_version} -> {new_version})"
-                    )
-                    command = [
+                if not self.ignore_conflicts and dependency_analyzer_ready:
+                    dry_run_command = [
                         "install",
+                        "--dry-run",
                         "--upgrade",
                         f"{package_name}=={new_version}",
                         "--disable-pip-version-check",
                         "--no-input",
                     ]
                     if self._allow_break_system_pkgs:
-                        command.append("--break-system-packages")
+                        dry_run_command.append("--break-system-packages")
 
-                    stdout, stderr, return_code = self._run_pip_command(command)
-                    # Post-install conflict check (as a safety net, though dry-run should catch most)
-                    # Check only if install command succeeded (return_code == 0) but might have produced warnings
-                    post_install_conflict = False
-                    if return_code == 0:
-                        post_install_conflict = self._check_for_conflicts(
-                            stderr, package_name
-                        )
+                    _, dry_run_stderr, dry_run_return_code = self._run_pip_command(
+                        dry_run_command
+                    )
+                    conflict_reasons = self._analyzer.check_package_conflict(
+                        package_name, new_version
+                    )
 
-                    if post_install_conflict:
-                        # This case means install reported success (code 0) but stderr had conflict warnings
+                    if conflict_reasons:
                         self.stats.conflict_detected_count += 1
-                        if not self.ignore_conflicts:
-                            logger.error(
-                                f"Dependency conflict warning detected in stderr after successful install of '{package_name}'. Environment might be inconsistent. Update marked as FAILED."
+                        perform_update = False
+                        self._skipped_due_to_conflict[package_name] = (
+                            pkg,
+                            conflict_reasons,
+                        )
+                        if progress and task_id is not None:
+                            progress.update(
+                                task_id,
+                                description=f"[yellow]Deferred {package_name} (conflict)",
                             )
-                            logger.debug(
-                                f"Post-install conflict details (stderr): {stderr}"
-                            )
-                            update_failed = True
-                            is_conflict_failure = (
-                                True  # Treat this as a conflict failure
-                            )
-                            failure_reason = "Dependency conflict warning post-install"
-                            self.stats.conflicted_packages.append(
-                                package_name
-                            )  # Add to skipped list
-                            # Note: Package IS installed at this point, unlike dry-run failure. Manual intervention likely needed.
+
+                    elif dry_run_return_code != 0:
+                        # Dry run failed for other reasons
+                        is_system_pkg_err = (
+                            self._check_for_externally_managed_env_error(dry_run_stderr)
+                        )
+                        if is_system_pkg_err and not self._allow_break_system_pkgs:
+                            failure_reason = "System-managed package (dry-run check)"
+                            self.stats.system_managed_count += 1
+                            self.stats.system_packages.append(package_name)
                         else:
-                            logger.warning(
-                                f"Dependency conflict warning detected post-install for '{package_name}', but ignored due to flag."
-                            )
-                            self.stats.conflict_ignored_count += 1
+                            failure_reason = f"Dry run failed (code {dry_run_return_code}): {dry_run_stderr[:200]}"
+                        perform_update = False
+                        dry_run_failed_non_conflict = True
 
-                    if not update_failed:
-                        if return_code == 0:
-                            # Downloaded from dry-run, actual install uses pip's cached version
-                            download_bytes = self._parse_download_size(
-                                dry_run_stdout + dry_run_stderr
-                            )
-                            self.stats.total_download_size_bytes += download_bytes
-                            if download_bytes > 0:
-                                logger.debug(
-                                    f"Estimated {download_bytes / 1024 ** 2:.7f} MB downloaded for {package_name} update."
-                                )
+                # --- Execute Update (if not deferred or failed dry run) ---
+                if perform_update:
+                    update_result = self._execute_and_verify_update(
+                        pkg, progress, task_id
+                    )
 
-                            try:
-                                current_info = self._get_specific_package_info(
-                                    package_name
-                                )
-                                if current_info and current_info.version == new_version:
-                                    logger.success(
-                                        f"Successfully updated {package_name} to {new_version}"
-                                    )
-                                    self.stats.successful_update_count += 1
-                                    self.stats.updated_packages[package_name] = (
-                                        old_version,
-                                        new_version,
-                                    )
-                                    if cached_outdated_data is not None:
-                                        logger.debug(
-                                            f"Attempting to remove {package_name} from cache data."
-                                        )
-                                        # Remove the successfully updated package from the cached list
-                                        initial_count = len(cached_outdated_data)
-                                        cached_outdated_data = [
-                                            item
-                                            for item in cached_outdated_data
-                                            if item.get("name") != package_name
-                                        ]
-                                        if len(cached_outdated_data) < initial_count:
-                                            logger.success(
-                                                f"Removed `{package_name}` from cache data."
-                                            )
-                                        else:
-                                            logger.debug(
-                                                f"`{package_name}` not found in cache data thus not removed"
-                                            )
+                    if update_result.success:
+                        self.stats.successful_update_count += 1
+                        self.stats.updated_packages[package_name] = (
+                            old_version,
+                            new_version,
+                        )
+                        self.stats.total_download_size_bytes += (
+                            update_result.download_bytes
+                        )
+                    else:
+                        # Record failure from execution attempt
+                        self.stats.failed_update_count += 1
+                        self.stats.failed_packages[package_name] = update_result.message
+                        if update_result.is_conflict_related_failure:
+                            # This accounts for post-install conflicts when not ignoring
+                            self.stats.conflicted_packages.append(package_name)
+                        elif update_result.is_system_managed_failure:
+                            self.stats.system_managed_count += 1
+                            self.stats.system_packages.append(package_name)
 
-                                elif current_info:
-                                    logger.error(
-                                        f"pip reported success for {package_name}, but installed version is {current_info.version} (expected {new_version}). Marking as failed."
-                                    )
-                                    update_failed = True
-                                    failure_reason = f"Version mismatch after update ({current_info.version} installed)"
-                                else:
-                                    logger.error(
-                                        f"pip reported success for {package_name}, but could not verify installed version after update. Marking as failed."
-                                    )
-                                    update_failed = True
-                                    failure_reason = (
-                                        "Could not verify version after update"
-                                    )
-                            except PipUpdaterError as verify_err:
-                                logger.error(
-                                    f"pip reported success for {package_name}, but failed to verify installed version ({verify_err}). Marking as failed."
-                                )
-                                update_failed = True
-                                failure_reason = f"Verification failed ({verify_err})"
-                        else:
-                            logger.error(
-                                f"Failed to update {package_name}. Pip command failed with return code: {return_code}"
-                            )
-                            update_failed = True
-                            if not is_conflict_failure and self._check_for_conflicts(
-                                stderr, package_name
-                            ):
-                                failure_reason = f"Pip command failed (code {return_code}, likely due to conflict)"
-                                is_conflict_failure = True  # Mark as conflict if pattern matches on failure
-                                # Add to conflicted list only if not ignoring conflicts
-                                if not self.ignore_conflicts:
-                                    self.stats.conflicted_packages.append(package_name)
-                            else:
-                                failure_reason = (
-                                    f"Pip command failed (code {return_code})"
-                                )
-
-                if update_failed:
+                elif dry_run_failed_non_conflict:
+                    # Record failure from dry-run check (non-conflict)
                     self.stats.failed_update_count += 1
                     self.stats.failed_packages[package_name] = failure_reason
 
-                if progress:
+                if progress and task_id is not None:
                     progress.update(task_id, advance=1)
 
-        # Save the modified cached data back to the cache
+            # --- Re-evaluation Phase (After main loop) ---
+            if self._skipped_due_to_conflict:
+                if progress and task_id is not None:
+                    progress.update(
+                        task_id,
+                        description="[magenta]Re-evaluating deferred packages due to conflicts...",
+                    )
+
+                try:
+                    # Reload dependency state as it might have changed
+                    self._analyzer.load_current_environment_state()
+                    dependency_analyzer_ready_for_retry = True
+                except DependencyAnalysisError as e:
+                    self.console.print(
+                        f"[bold red]Warning:[/bold red] Could not re-analyze dependencies: {e}"
+                    )
+                    dependency_analyzer_ready_for_retry = False
+
+                resolved_packages = set()
+                packages_to_retry = list(self._skipped_due_to_conflict.items())
+
+                for pkg_name, (pkg_info, _) in packages_to_retry:
+                    process_retry = False
+                    if dependency_analyzer_ready_for_retry:
+                        new_conflict_reasons = self._analyzer.check_package_conflict(
+                            pkg_name, pkg_info.latest_version
+                        )
+                        if not new_conflict_reasons:
+                            process_retry = True
+                            if progress and task_id is not None:
+                                progress.update(
+                                    task_id,
+                                    description=f"[green]Retrying {pkg_name} (conflict resolved)",
+                                )
+                        else:
+                            # Conflict still exists, update reasons in dict
+                            self._skipped_due_to_conflict[pkg_name] = (
+                                pkg_info,
+                                new_conflict_reasons,
+                            )
+                            if progress and task_id is not None:
+                                progress.update(
+                                    task_id,
+                                    description=f"[yellow]Conflict persists for {pkg_name}",
+                                )
+
+                    if process_retry:
+                        retry_result = self._execute_and_verify_update(
+                            pkg_info, progress, task_id
+                        )
+                        resolved_packages.add(pkg_name)
+
+                        if retry_result.success:
+                            self.stats.successful_update_count += 1
+                            self.stats.updated_packages[pkg_name] = (
+                                pkg_info.version,
+                                pkg_info.latest_version,
+                            )
+                            self.stats.total_download_size_bytes += (
+                                retry_result.download_bytes
+                            )
+                        else:
+                            # Retry failed
+                            self.stats.failed_update_count += 1
+                            self.stats.failed_packages[pkg_name] = (
+                                f"Retry failed: {retry_result.message}"
+                            )
+                            if retry_result.is_conflict_related_failure:
+                                self.stats.conflicted_packages.append(pkg_name)
+                            elif retry_result.is_system_managed_failure:
+                                self.stats.system_managed_count += 1
+                                self.stats.system_packages.append(pkg_name)
+
+                # Remove successfully retried or definitively failed retried packages from deferred list
+                for pkg_name in resolved_packages:
+                    self._skipped_due_to_conflict.pop(pkg_name, None)
+
+        # Add remaining deferred packages as unresolved conflicts
+        for pkg_name, (_, reasons) in self._skipped_due_to_conflict.items():
+            if (
+                pkg_name not in self.stats.failed_packages
+                and pkg_name not in self.stats.updated_packages
+            ):
+                self.stats.failed_update_count += 1
+                reason_str = ", ".join(reasons)
+                self.stats.failed_packages[pkg_name] = f"{reason_str}"
+                if not self.ignore_conflicts:
+                    self.stats.conflicted_packages.append(pkg_name)
+
+        # --- Final Cache Update (after all updates and retries) ---
         if (
             cached_outdated_data is not None
             and self.cache
             and self.cache_duration_seconds > 0
+            and expiry_timestamp is not None
         ):
-            logger.debug(
-                f"Attempting to update cache for key (post update): '{cache_key}'"
-            )
             try:
-                # Re-serialize the modified list and update the cache with remaining TTL
                 remaining_ttl: int = int(expiry_timestamp - time.time())
-                updated_hash: str | None = self._calculate_installed_pkgs_hash()
-                if not updated_hash:
-                    raise ValueError("Empty hash.")
+                if remaining_ttl > 0:
+                    # Filter based on final successful updates
+                    final_updated_names = set(self.stats.updated_packages.keys())
+                    pruned_cache_data = [
+                        item
+                        for item in cached_outdated_data
+                        if item.get("name") not in final_updated_names
+                    ]
 
-                if remaining_ttl <= 0:
-                    logger.debug(
-                        f"Cache key '{cache_key}' is already expired or about to expire. No pruning needed, entry will be refreshed on next check."
-                    )
-                else:
-                    updated_value = (json.dumps(cached_outdated_data), updated_hash)
+                    # Only update cache if content changed or hash needs update
+                    updated_hash = self._calculate_installed_pkgs_hash()
+                    if not updated_hash:
+                        raise ValueError(
+                            "Failed to calculate post-update hash for cache."
+                        )
+
+                    updated_value = (json.dumps(pruned_cache_data), updated_hash)
                     self.cache.set(
                         cache_key,
                         updated_value,
                         expire=remaining_ttl,
                         tag=OUTDATED_CACHE_TAG,
                     )
-                    logger.info("Cache updated with remaining outdated packages")
-            except TypeError as e:
-                error_msg = f"Unexpected data structure during pruning parse for '{cache_key}': {e}"
-                logger.error(
-                    f"{error_msg} — Cache entry has unexpected structure. Attempting deletion."
-                )
+                else:
+                    # Cache expired during run, delete stale entry
+                    self._attempt_cache_deletion(
+                        cache_key, None, "expired during update run"
+                    )
+
+            except (TypeError, ValueError, json.JSONDecodeError) as cache_prune_e:
                 self._attempt_cache_deletion(
-                    cache_key, None, "malformed structure during pruning parse"
+                    cache_key,
+                    None,
+                    f"processing error during final cache prune: {cache_prune_e}",
                 )
-            except ValueError as ve:
-                error_msg = f"Failed to generate SHA256 hash for current list of installed packages for '{cache_key}': {ve}"
-                logger.error(f"{error_msg} — Unable to update cache without hash.")
+            except Exception as cache_prune_e:
                 self._attempt_cache_deletion(
-                    cache_key, None, "processing error during hash computation"
-                )
-            except Exception as e:
-                error_msg = f"Unexpected error during pruning serialization for '{cache_key}': {e}"
-                logger.error(f"{error_msg} — Attempting deletion.")
-                self._attempt_cache_deletion(
-                    cache_key, None, "processing error during pruning"
+                    cache_key,
+                    None,
+                    f"unexpected error during final cache prune: {cache_prune_e}",
                 )
 
         self.stats.end_time = datetime.now()
-        logger.info("Package Update Process Finished")
+        if progress and task_id is not None:
+            final_description = "[bold green]Update process complete. Summary below."
+            if self.stats.failed_update_count > 0:
+                final_description = "[bold yellow]Update process complete with some failures. Summary below."
+            progress.update(
+                task_id,
+                description=final_description,
+                completed=len(initial_packages_to_check),
+            )
+
         self._log_summary()
         return self.stats
 
