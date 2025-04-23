@@ -34,7 +34,7 @@ This script is intentionally built using a **pragmatic and somewhat "hacky" appr
 
 You might notice this entire tool is contained within a single Python file. While not typical for larger projects, this was a conscious decision for a utility of this scope:
 
-* **Portability:** Makes it incredibly easy to distribute and use. Just download the `.py` file, ensure you have the requirements, and run it directly with `python pip_updater.py ...`. No complex installation needed.
+* **Portability:** Makes it incredibly easy to distribute and use. Just clone, and install it directly in your environment with `pip install`. No complex installation needed.
 * **Simplicity for a Utility:** For a focused command-line tool, keeping everything together simplifies deployment and usage for end-users who just want a quick way to manage updates.
 * **Self-Contained Logic:** The core logic is tightly coupled with interacting with `pip` commands, making separation less beneficial for this specific task compared to the ease of distribution.
 
@@ -63,7 +63,7 @@ You might notice this entire tool is contained within a single Python file. Whil
 
 1.  **Show Help:**
     ```bash
-    python pip_updater.py -h
+    pipforge -h
     ```
     *(Output)*
     ```bash
@@ -96,80 +96,80 @@ You might notice this entire tool is contained within a single Python file. Whil
     
     Example Usage:
       # Check only, use cache (default), show debug logs
-      python pip_updater.py --log-level DEBUG
+      pipforge --log-level DEBUG
     
       # Update packages, ignore conflicts, skip confirmation, disable cache entirely
-      python pip_updater.py --update --ignore-conflicts -y --no-cache
+      pipforge --update --ignore-conflicts -y --no-cache
     
       # Check only, force refresh (equivalent to --no-cache)
-      python pip_updater.py --cache-duration 0
+      pipforge --cache-duration 0
     
       # Check only, specify a custom cache directory and duration
-      python pip_updater.py --cache-dir /path/to/my/cache --cache-duration 120
+      pipforge --cache-dir /path/to/my/cache --cache-duration 120
     
       # Force update system-managed packages
       # ⚠️  Use with extreme caution
-      python pip_updater.py --update --allow-break-system-packages
+      pipforge --update --allow-break-system-packages
     ```
 3.  **Check for Outdated Packages (Default Action):**
     ```bash
-    python pip_updater.py
+    pipforge
     ```
     *(This will list outdated packages but won't update anything)*
 
 4.  **Check and Update Packages:**
     ```bash
-    python pip_updater.py --update
+    pipforge --update
     ```
     *(You will be prompted for confirmation before updates start)*
 
 5.  **Update Without Confirmation:**
     ```bash
-    python pip_updater.py --update -y
+    pipforge --update -y
     # or
-    python pip_updater.py --update --yes
+    pipforge --update --yes
     ```
 
 6.  **Exclude Specific Packages:**
     ```bash
     # Exclude 'requests' and 'numpy' via command line
-    python pip_updater.py --update --exclude requests numpy
+    pipforge --update --exclude requests numpy
 
     # Exclude packages listed in a file (one package name per line, '#' for comments)
-    python pip_updater.py --update --exclude-file /path/to/exclude.txt
+    pipforge --update --exclude-file /path/to/exclude.txt
     ```
 
 7.  **Ignore Conflicts (Use with Caution!):**
     ```bash
-    python pip_updater.py --update --ignore-conflicts -y
+    pipforge --update --ignore-conflicts -y
     ```
     *(This attempts updates even if dependency conflicts are detected - see Disclaimer!)*
 
 8.  **Allow Breaking System Packages (Use with Caution!):**
     ```bash
     # Needed on systems like Debian 12+ / Ubuntu 23.04+ if not using a venv
-    python pip_updater.py --update --allow-break-system-packages -y
+    pipforge --update --allow-break-system-packages -y
     ```
 
 9.  **Disable Caching:**
     ```bash
-    python pip_updater.py --no-cache
+    pipforge --no-cache
     # or
-    python pip_updater.py --cache-duration 0
+    pipforge --cache-duration 0
     ```
 
 10.  **Customize Cache:**
     ```bash
     # Set cache duration to 2 hours (120 minutes)
-    python pip_updater.py --cache-duration 120
+    pipforge --cache-duration 120
 
     # Set a custom cache directory
-    python pip_updater.py --cache-dir /tmp/my_pip_cache
+    pipforge --cache-dir /tmp/my_pip_cache
     ```
 
 11. **Disable Rich Formatting:**
     ```bash
-    python pip_updater.py --no-rich-console
+    pipforge --no-rich-console
     ```
 
 ## 💾 Caching Explained
@@ -211,7 +211,7 @@ You can prevent the script from checking or updating specific packages using two
 
 1.  **Command Line (`--exclude`):** Pass package names directly.
     ```bash
-    python pip_updater.py --update --exclude Jinja2 Flask Werkzeug
+    pipforge --update --exclude Jinja2 Flask Werkzeug
     ```
 2.  **Exclusion File (`--exclude-file`):** Provide a path to a text file containing one package name per line. Lines starting with `#` are ignored as comments.
 
@@ -230,7 +230,7 @@ You can prevent the script from checking or updating specific packages using two
     ```
     *Usage:*
     ```bash
-    python pip_updater.py --update --exclude-file ./exclude.txt
+    pipforge --update --exclude-file ./exclude.txt
     ```
 
 Packages listed in either way will be ignored during the outdated check and update process. The script also implicitly excludes `pip` itself and packages only available as source distributions (`sdist`) from automatic updates.
@@ -239,7 +239,7 @@ Packages listed in either way will be ignored during the outdated check and upda
 
 The script includes error handling for common issues like:
 
-* Missing dependencies (`rich`, `packaging`, `diskcache`).
+* Missing dependencies (`rich`, `packaging`, `diskcache`, `loguru`).
 * Incorrect Python version.
 * Pip command failures.
 * Cache directory access problems.
