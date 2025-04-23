@@ -53,11 +53,13 @@ You might notice this entire tool is contained within a single Python file. Whil
 
 * **Python:** Version 3.11 or later is required.
 * **Pip:** Needs `pip` and `pipdeptree` available in the environment.
-* **Libraries:** The script uses external libraries. Install them using pip:
 
-    ```bash
-    pip install rich packaging diskcache loguru pipdeptree
-    ```
+## 📦 Installation
+
+To install `pipforge` in your environment, clone the repository and run the following command in the project’s root directory:
+```bash
+pip install .
+```
 
 ## ⚙️ Usage
 
