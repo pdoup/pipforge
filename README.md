@@ -65,27 +65,72 @@ You might notice this entire tool is contained within a single Python file. Whil
     ```bash
     python pip_updater.py -h
     ```
+    *Output*
+    ```bash
+Pip Package Updater
 
-2.  **Check for Outdated Packages (Default Action):**
+options:
+  -h, --help                                             show this help message and exit
+
+Exclusion Options:
+  --exclude-file FILE_PATH                               Path to a text file containing package names to exclude (one per line).
+  --exclude [PKG ...]                                    List of package names to exclude directly.
+
+Logging & Cache Options:
+  --log-level {TRACE,DEBUG,INFO,WARNING,ERROR,CRITICAL}  Set the minimum console logging level (default: INFO).
+  --log-file-path PATH                                   Path to the log file (default: pip_updater.log).
+  --no-log-file                                          Disable logging to a file.
+  --no-rich-console                                      Disable rich formatting (colors, tables, progress) in console output.
+  --no-cache                                             Disable caching entirely (equivalent to --cache-duration 0).
+  --cache-duration MINUTES                               Cache validity duration for outdated checks in minutes (0 disables cache, default: 60).
+  --cache-dir PATH                                       Directory for cache files (default: /home/kmarg/.cache/pip_updater).
+
+Execution Options:
+  --update                                               Perform package updates after checking. Default is check-only.
+  -y, --yes                                              Skip the confirmation prompt before updating packages.
+  --ignore-conflicts                                     Attempt updates even if pip detects dependency conflicts (use with caution).
+  --allow-break-system-packages                          Allow pip to upgrade system-managed packages by using the `--break-system-packages` flag. 
+
+Default cache directory: /home/user/.cache/pip_updater
+Default cache duration: 60 minutes
+
+Example Usage:
+  # Check only, use cache (default), show debug logs
+  python pip_updater.py --log-level DEBUG
+
+  # Update packages, ignore conflicts, skip confirmation, disable cache entirely
+  python pip_updater.py --update --ignore-conflicts -y --no-cache
+
+  # Check only, force refresh (equivalent to --no-cache)
+  python pip_updater.py --cache-duration 0
+
+  # Check only, specify a custom cache directory and duration
+  python pip_updater.py --cache-dir /path/to/my/cache --cache-duration 120
+
+  # Force update system-managed packages
+  # ⚠️  Use with extreme caution
+  python pip_updater.py --update --allow-break-system-packages
+```
+3.  **Check for Outdated Packages (Default Action):**
     ```bash
     python pip_updater.py
     ```
     *(This will list outdated packages but won't update anything)*
 
-3.  **Check and Update Packages:**
+4.  **Check and Update Packages:**
     ```bash
     python pip_updater.py --update
     ```
     *(You will be prompted for confirmation before updates start)*
 
-4.  **Update Without Confirmation:**
+5.  **Update Without Confirmation:**
     ```bash
     python pip_updater.py --update -y
     # or
     python pip_updater.py --update --yes
     ```
 
-5.  **Exclude Specific Packages:**
+6.  **Exclude Specific Packages:**
     ```bash
     # Exclude 'requests' and 'numpy' via command line
     python pip_updater.py --update --exclude requests numpy
@@ -94,26 +139,26 @@ You might notice this entire tool is contained within a single Python file. Whil
     python pip_updater.py --update --exclude-file /path/to/exclude.txt
     ```
 
-6.  **Ignore Conflicts (Use with Caution!):**
+7.  **Ignore Conflicts (Use with Caution!):**
     ```bash
     python pip_updater.py --update --ignore-conflicts -y
     ```
     *(This attempts updates even if dependency conflicts are detected - see Disclaimer!)*
 
-7.  **Allow Breaking System Packages (Use with Caution!):**
+8.  **Allow Breaking System Packages (Use with Caution!):**
     ```bash
     # Needed on systems like Debian 12+ / Ubuntu 23.04+ if not using a venv
     python pip_updater.py --update --allow-break-system-packages -y
     ```
 
-8.  **Disable Caching:**
+9.  **Disable Caching:**
     ```bash
     python pip_updater.py --no-cache
     # or
     python pip_updater.py --cache-duration 0
     ```
 
-9.  **Customize Cache:**
+10.  **Customize Cache:**
     ```bash
     # Set cache duration to 2 hours (120 minutes)
     python pip_updater.py --cache-duration 120
@@ -122,7 +167,7 @@ You might notice this entire tool is contained within a single Python file. Whil
     python pip_updater.py --cache-dir /tmp/my_pip_cache
     ```
 
-10. **Disable Rich Formatting:**
+11. **Disable Rich Formatting:**
     ```bash
     python pip_updater.py --no-rich-console
     ```
