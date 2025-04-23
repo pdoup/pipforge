@@ -2149,20 +2149,20 @@ Default cache duration: {DEFAULT_CACHE_DURATION_MINUTES} minutes
 
 Example Usage:
   # Check only, use cache (default), show debug logs
-  python {sys.argv[0]} --log-level DEBUG
+  pipforge --log-level DEBUG
 
   # Update packages, ignore conflicts, skip confirmation, disable cache entirely
-  python {sys.argv[0]} --update --ignore-conflicts -y --no-cache
+  pipforge --update --ignore-conflicts -y --no-cache
 
   # Check only, force refresh (equivalent to --no-cache)
-  python {sys.argv[0]} --cache-duration 0
+  pipforge --cache-duration 0
 
   # Check only, specify a custom cache directory and duration
-  python {sys.argv[0]} --cache-dir /path/to/my/cache --cache-duration 120
+  pipforge --cache-dir /path/to/my/cache --cache-duration 120
 
   # Force update system-managed packages
   # ⚠️  Use with extreme caution
-  python {sys.argv[0]} --update --allow-break-system-packages
+  pipforge --update --allow-break-system-packages
 
 """,
     )
