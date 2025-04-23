@@ -83,7 +83,7 @@ You might notice this entire tool is contained within a single Python file. Whil
       --no-rich-console                                      Disable rich formatting (colors, tables, progress) in console output.
       --no-cache                                             Disable caching entirely (equivalent to --cache-duration 0).
       --cache-duration MINUTES                               Cache validity duration for outdated checks in minutes (0 disables cache, default: 60).
-      --cache-dir PATH                                       Directory for cache files (default: /home/kmarg/.cache/pip_updater).
+      --cache-dir PATH                                       Directory for cache files (default: /home/user/.cache/pip_updater).
     
     Execution Options:
       --update                                               Perform package updates after checking. Default is check-only.
