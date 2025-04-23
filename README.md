@@ -51,7 +51,7 @@ You might notice this entire tool is contained within a single Python file. Whil
 
 ## 🛠️ Requirements
 
-* **Python:** Version 3.11 or later is required.
+* **Python:** v3.11 or later is required.
 * **Pip:** Needs `pip` and `pipdeptree` available in the environment.
 
 ## 📦 Installation
